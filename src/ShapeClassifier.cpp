@@ -89,6 +89,7 @@ int main(int argc, char** argv )
         double current_contour_area;
         //Approximate Contours with Polygons and pull off largest region only
         double peri;
+
         for(int i = 0; i <contours.size(); i++)
         {
             current_contour_area = cv::contourArea(contours[i], false);
@@ -97,6 +98,12 @@ int main(int argc, char** argv )
                 cv::approxPolyDP( contours[i], contours_poly[0], 0.015*peri, true );
                 peri = cv::arcLength(contours[i], true);
             }
+        }
+
+        std::vector<double> Acp(contours_poly.size());
+        for( int i = 0; i < contours_poly.size(); i++ )
+        {
+            Acp[i] = cv::contourArea(contours_poly[i]);
         }
 
 
@@ -109,10 +116,12 @@ int main(int argc, char** argv )
 
         // Find minimum-area enclosing rectangle
         std::vector<cv::RotatedRect> minRect( contours_poly.size() );
+        std::vector<double> Abb(contours_poly.size());
 
         for( int i = 0; i < contours_poly.size(); i++ )
         {
             minRect[i] = cv::minAreaRect( cv::Mat(contours_poly[i]) );
+            Abb[i] = minRect[i].size.width * minRect[i].size.height;
         }
 
         // Find arcLength
@@ -156,13 +165,15 @@ int main(int argc, char** argv )
         //Metric #2: Pch^2/Ach - Thinness Ratio - Small for circles
         //Metric #3: Alt/Ach - Near unity for triangles
         //Metric #4: Pch/Per - Distinguish rectangles from ellipses and diamonds
+        //Metric #5: Acp/Abb
 
         for (int i = 0; i < contours_poly.size(); i++)
         {
-            M_matrix[z][1] = len[i]/Pch[i];
-            M_matrix[z][2] = pow(Pch[i],2.0)/Ach[i];
-            M_matrix[z][3] = Alt[i]/Ach[i];
-            M_matrix[z][4] = Pch[i]/len[i];
+            M_matrix[z][0] = len[i]/Pch[i];
+            M_matrix[z][1] = pow(Pch[i],2.0)/Ach[i];
+            M_matrix[z][2] = Alt[i]/Ach[i];
+            M_matrix[z][3] = Pch[i]/len[i];
+            M_matrix[z][4] = Acp[i]/Abb[i];
         }
 
         //Draw Output on Image
@@ -181,10 +192,10 @@ int main(int argc, char** argv )
             cv::drawContours(image, hull, i, green, 10, 8, std::vector<cv::Vec4i>(), 0, cv::Point() );
 
             //Minimum-Area Enclosing Rectangle
-            cv::Point2f rect_points[4];
-            minRect[i].points( rect_points );
             for( int j = 0; j < 4; j++ )
             {
+                cv::Point2f rect_points[4];
+                minRect[i].points( rect_points );
                 cv::line(image, rect_points[j], rect_points[(j+1)%4], blue, 10, 8 );
             }
             //Max-Area enclosed triangle
@@ -205,12 +216,13 @@ int main(int argc, char** argv )
         std::cout << "M1 (len/Pch) is " << M_matrix[z][0] << std::endl;
         std::cout << "M2 (Pch^2/Ach) is " << M_matrix[z][1] << std::endl;
         std::cout << "M3 (Alt/Ach) is " << M_matrix[z][2] << std::endl;
-        std::cout << "M4 (Pch/Per) is " << M_matrix[z][3] << std::endl << std::endl;
+        std::cout << "M4 (Pch/Per) is " << M_matrix[z][3] << std::endl;
+        std::cout << "M5 (Acp/Abb) is " << M_matrix[z][4] << std::endl << std::endl;
     }
 
     std::cout << "Average" << std::endl;
 
-    for (int i = 0; i<4; i++)
+    for (int i = 0; i<5; i++)
     {
         double sum = 0;
         double average;
