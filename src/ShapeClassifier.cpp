@@ -51,41 +51,41 @@ int main(int argc, char** argv )
         std::vector<std::vector<cv::Point> > contours;
 
         //Detect Regions Using MSER
-        cv::MSER mser(10,100000,1000000,.5,.2,200,1.01,0.003,5);
+        cv::MSER mser(10,100000,1500000,.5,.2,200,1.01,0.003,5);
         mser(src_gray,contours);
 
-        cv::Mat mask;
-        cv::Point p;
-        cv::Mat element;
-        // Create Mask
-        mask = cv::Mat::zeros( src_gray.size(), CV_8UC1 );
-        for (int i = 0; i<contours.size(); i++){
-            for (int j = 0; j<contours[i].size(); j++){
-                p = contours[i][j];
-                mask.at<uchar>(p.y, p.x) = 255;
-            }
-        }
+//        cv::Mat mask;
+//        cv::Point p;
+//        cv::Mat element;
+//        // Create Mask
+//        mask = cv::Mat::zeros( src_gray.size(), CV_8UC1 );
+//        for (int i = 0; i<contours.size(); i++){
+//            for (int j = 0; j<contours[i].size(); j++){
+//                p = contours[i][j];
+//                mask.at<uchar>(p.y, p.x) = 255;
+//            }
+//        }
 
-        // Erode and Dilate to remove small regions
-        int dilation_size = 2;
-        element = getStructuringElement(cv::MORPH_RECT,
-                                        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-                                        cv::Point(dilation_size, dilation_size) );
-        dilate(mask,mask,element);
-        int erosion_size = 2;
-        element = getStructuringElement(cv::MORPH_ELLIPSE,
-                                        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-                                        cv::Point(erosion_size, erosion_size) );
-        erode(mask,mask,element);
+//        // Erode and Dilate to remove small regions
+//        int dilation_size = 2;
+//        element = getStructuringElement(cv::MORPH_RECT,
+//                                        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+//                                        cv::Point(dilation_size, dilation_size) );
+//        dilate(mask,mask,element);
+//        int erosion_size = 2;
+//        element = getStructuringElement(cv::MORPH_ELLIPSE,
+//                                        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+//                                        cv::Point(erosion_size, erosion_size) );
+//        erode(mask,mask,element);
 
-        // Find morphological gradient to find edges
-        cv::morphologyEx(mask,mask,cv::MORPH_GRADIENT,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
+//        // Find morphological gradient to find edges
+//        cv::morphologyEx(mask,mask,cv::MORPH_GRADIENT,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
 
         //Find Contours
-        cv::findContours(mask,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
+//        cv::findContours(mask,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
         std::vector<std::vector<cv::Point> > contours_poly( 1 );
         std::vector<cv::Point> current_contour;
-        double max_contour_area = 0.0;
+        double max_contour_area = -1.0;
         double current_contour_area;
         //Approximate Contours with Polygons and pull off largest region only
         double peri;
@@ -93,9 +93,9 @@ int main(int argc, char** argv )
         for(int i = 0; i <contours.size(); i++)
         {
             current_contour_area = cv::contourArea(contours[i], false);
-            if (current_contour_area>max_contour_area)
+            if (current_contour_area>max_contour_area && !isnan(current_contour_area))
             {
-                cv::approxPolyDP( contours[i], contours_poly[0], 0.015*peri, true );
+                cv::approxPolyDP( contours[i], contours_poly[0], 0.005*peri, true );
                 peri = cv::arcLength(contours[i], true);
             }
         }
