@@ -1,7 +1,16 @@
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <iostream>
+#define TRIANGLE 0
+#define STAR 1
+#define SEMICIRCLE 2
+#define PENTAGON 3
+#define SQUARE 4
+#define CROSS 5
+#define CIRCLE 6
 
+void classify(double M1, double M2, double M3, double M4);
+double checkScore(std::vector<double> shape_M,int shape);
 double triArea(int A,int B,int C, std::vector<cv::Point> points);
 void maxAreaTriangle(std::vector<cv::Point> &points, std::vector<cv::Point2f> &maxTri);
 
@@ -54,35 +63,35 @@ int main(int argc, char** argv )
         cv::MSER mser(10,100000,1500000,.5,.2,200,1.01,0.003,5);
         mser(src_gray,contours);
 
-//        cv::Mat mask;
-//        cv::Point p;
-//        cv::Mat element;
-//        // Create Mask
-//        mask = cv::Mat::zeros( src_gray.size(), CV_8UC1 );
-//        for (int i = 0; i<contours.size(); i++){
-//            for (int j = 0; j<contours[i].size(); j++){
-//                p = contours[i][j];
-//                mask.at<uchar>(p.y, p.x) = 255;
-//            }
-//        }
+        cv::Mat mask;
+        cv::Point p;
+        cv::Mat element;
+        // Create Mask
+        mask = cv::Mat::zeros( src_gray.size(), CV_8UC1 );
+        for (int i = 0; i<contours.size(); i++){
+            for (int j = 0; j<contours[i].size(); j++){
+                p = contours[i][j];
+                mask.at<uchar>(p.y, p.x) = 255;
+            }
+        }
 
-//        // Erode and Dilate to remove small regions
-//        int dilation_size = 2;
-//        element = getStructuringElement(cv::MORPH_RECT,
-//                                        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
-//                                        cv::Point(dilation_size, dilation_size) );
-//        dilate(mask,mask,element);
-//        int erosion_size = 2;
-//        element = getStructuringElement(cv::MORPH_ELLIPSE,
-//                                        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
-//                                        cv::Point(erosion_size, erosion_size) );
-//        erode(mask,mask,element);
+        // Erode and Dilate to remove small regions
+        int dilation_size = 2;
+        element = getStructuringElement(cv::MORPH_RECT,
+                                        cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+                                        cv::Point(dilation_size, dilation_size) );
+        dilate(mask,mask,element);
+        int erosion_size = 2;
+        element = getStructuringElement(cv::MORPH_ELLIPSE,
+                                        cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+                                        cv::Point(erosion_size, erosion_size) );
+        erode(mask,mask,element);
 
-//        // Find morphological gradient to find edges
-//        cv::morphologyEx(mask,mask,cv::MORPH_GRADIENT,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
+        // Find morphological gradient to find edges
+        cv::morphologyEx(mask,mask,cv::MORPH_GRADIENT,cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(3,3)));
 
         //Find Contours
-//        cv::findContours(mask,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
+        cv::findContours(mask,contours,CV_RETR_EXTERNAL,CV_CHAIN_APPROX_SIMPLE);
         std::vector<std::vector<cv::Point> > contours_poly( 1 );
         std::vector<cv::Point> current_contour;
         double max_contour_area = -1.0;
@@ -174,6 +183,7 @@ int main(int argc, char** argv )
             M_matrix[z][2] = Alt[i]/Ach[i];
             M_matrix[z][3] = Pch[i]/len[i];
             M_matrix[z][4] = Acp[i]/Abb[i];
+            classify(M_matrix[z][0],M_matrix[z][1],M_matrix[z][2],M_matrix[z][3]);
         }
 
         //Draw Output on Image
@@ -239,6 +249,181 @@ int main(int argc, char** argv )
 
     return 0;
 } 
+
+void classify(double M1, double M2, double M3, double M4)
+{
+    // Get Shape Metrics
+    std::vector<double> shape_M(4);
+    shape_M[0] = M1;
+    shape_M[1] = M2;
+    shape_M[2] = M3;
+    shape_M[3] = M4;
+
+    // Check if triangle
+    double tri_score;
+    tri_score = checkScore(shape_M,TRIANGLE);
+    std::cout << "tri_score is " << tri_score << std::endl;
+    // Check if star
+    double star_score;
+    star_score = checkScore(shape_M,STAR);
+    std::cout << "star_score is " << star_score << std::endl;
+    // Check if semicircle
+    double semicircle_score;
+    semicircle_score = checkScore(shape_M,SEMICIRCLE);
+    std::cout << "semicircle_score is " << semicircle_score << std::endl;
+    // Check if pentagon
+    double pentagon_score;
+    pentagon_score = checkScore(shape_M,PENTAGON);
+    std::cout << "pentagon_score is " << pentagon_score << std::endl;
+    // Check if square
+    double square_score;
+    square_score = checkScore(shape_M,SQUARE);
+    std::cout << "square_score is " << square_score << std::endl;
+    // Check if cross
+    double cross_score;
+    cross_score = checkScore(shape_M,CROSS);
+    std::cout << "cross_score is " << cross_score << std::endl;
+    return;
+    // Check if circle
+    double circle_score;
+    circle_score = checkScore(shape_M,CIRCLE);
+    std::cout << "circle_score is " << circle_score << std::endl;
+    return;
+}
+
+double checkScore(std::vector<double> shape_M,int shape)
+{
+    std::vector<double> ideal_M(4);
+    cv::Mat weighting = cv::Mat::zeros(4,4,CV_64F);
+    if (shape == TRIANGLE)
+    {
+        // Define Ideal Triangle Metrics
+        ideal_M[0] = 1.02263;
+        ideal_M[1] = 20.5368;
+        ideal_M[2] = 0.981585;
+        ideal_M[3] = 0.980017;
+
+        // Define Weighting for Triangle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == STAR)
+    {
+        // Define Ideal Star Metrics
+        ideal_M[0] = 1.24138;
+        ideal_M[1] = 14.5534;
+        ideal_M[2] = 0.465244;
+        ideal_M[3] = 0.805898;
+
+        // Define Weighting for Star Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == SEMICIRCLE)
+    {
+        // Define Ideal Semicircle Metrics
+        ideal_M[0] = 1.00975;
+        ideal_M[1] = 17.4116;
+        ideal_M[2] = 0.655672;
+        ideal_M[3] = 0.9907;
+
+        // Define Weighting for Semicircle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == PENTAGON)
+    {
+        // Define Ideal Pentagon Metrics
+        ideal_M[0] = 1.01184;
+        ideal_M[1] = 14.5303;
+        ideal_M[2] = 0.460515;
+        ideal_M[3] = 0.988823;
+
+        // Define Weighting for Pentagon Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == SQUARE)
+    {
+        // Define Ideal Square Metrics
+        ideal_M[0] = 1.00362;
+        ideal_M[1] = 16.0307;
+        ideal_M[2] = 0.535063;
+        ideal_M[3] = 0.996447;
+
+        // Define Weighting for Square Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == CROSS)
+    {
+        // Define Ideal Cross Metrics
+        ideal_M[0] = 1.27732;
+        ideal_M[1] = 13.3333;
+        ideal_M[2] = 0.431724;
+        ideal_M[3] = 0.808809;
+
+        // Define Weighting for Cross Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == CIRCLE)
+    {
+        // Define Ideal Circle Metrics
+        ideal_M[0] = 1.01043;
+        ideal_M[1] = 12.708;
+        ideal_M[2] = 0.420216;
+        ideal_M[3] = 0.790285;
+
+        // Define Weighting for Circle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else
+    {
+        ideal_M[0] = 1;
+        ideal_M[1] = 1;
+        ideal_M[2] = 1;
+        ideal_M[3] = 1;
+
+        // Define Weighting for Triangle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+        std::cout << "Incorrect Shape Input in Shape Classifier" << std::endl;
+    }
+
+    // Compute Error for each metric
+    cv::Mat error = cv::Mat_<double>(4,1);
+    for (int i = 0; i < ideal_M.size(); i++)
+    {
+        error.at<double>(i,0) = 1.0 - fabs((shape_M[i]-ideal_M[i])/ideal_M[i]);
+    }
+
+    // Get transpose of error
+    cv::Mat error_trans;
+    cv::transpose(error,error_trans);
+
+    // Compute Score
+    double score;
+    score = cv::Mat(error_trans*weighting*error).at<double>(0,0);
+    return score;
+}
 
 void maxAreaTriangle(std::vector<cv::Point> &points, std::vector<cv::Point2f> &maxTri)
 {
