@@ -8,6 +8,12 @@
 #define SQUARE 4
 #define CROSS 5
 #define CIRCLE 6
+#define OCTAGON 7
+#define HEPTAGON 8
+#define HEXAGON 9
+#define TRAPEZOID 10
+#define RECTANGLE 11
+#define QUARTERCIRCLE 12
 
 void classify(double M1, double M2, double M3, double M4);
 double checkScore(std::vector<double> shape_M,int shape);
@@ -104,7 +110,7 @@ int main(int argc, char** argv )
             current_contour_area = cv::contourArea(contours[i], false);
             if (current_contour_area>max_contour_area && !isnan(current_contour_area))
             {
-                cv::approxPolyDP( contours[i], contours_poly[0], 0.005*peri, true );
+                cv::approxPolyDP( contours[i], contours_poly[0], 0.00005*peri, true );
                 peri = cv::arcLength(contours[i], true);
             }
         }
@@ -283,11 +289,33 @@ void classify(double M1, double M2, double M3, double M4)
     double cross_score;
     cross_score = checkScore(shape_M,CROSS);
     std::cout << "cross_score is " << cross_score << std::endl;
-    return;
     // Check if circle
     double circle_score;
     circle_score = checkScore(shape_M,CIRCLE);
     std::cout << "circle_score is " << circle_score << std::endl;
+    // Check if octagon
+    double octagon_score;
+    octagon_score = checkScore(shape_M,OCTAGON);
+    std::cout << "octagon_score is " << octagon_score << std::endl;
+    // Check if heptagon
+    double heptagon_score;
+    heptagon_score = checkScore(shape_M,HEPTAGON);
+    std::cout << "heptagon_score is " << heptagon_score << std::endl;
+    // Check if hexagon
+    double hexagon_score;
+    hexagon_score = checkScore(shape_M,HEXAGON);
+    std::cout << "hexagon_score is " << hexagon_score << std::endl;
+    // Check if trapezoid
+    double trapezoid_score;
+    trapezoid_score = checkScore(shape_M,TRAPEZOID);
+    std::cout << "trapezoid_score is " << trapezoid_score << std::endl;
+    // Check if rectangle
+    double rectangle_score;
+    rectangle_score = checkScore(shape_M,RECTANGLE);
+    std::cout << "rectangle_score is " << rectangle_score << std::endl;
+    double quartercircle_score;
+    quartercircle_score = checkScore(shape_M,QUARTERCIRCLE);
+    std::cout << "quartercircle_score is " << quartercircle_score << std::endl;
     return;
 }
 
@@ -382,12 +410,96 @@ double checkScore(std::vector<double> shape_M,int shape)
     else if (shape == CIRCLE)
     {
         // Define Ideal Circle Metrics
-        ideal_M[0] = 1.01043;
-        ideal_M[1] = 12.708;
-        ideal_M[2] = 0.420216;
-        ideal_M[3] = 0.790285;
+        ideal_M[0] = 1.06349;
+        ideal_M[1] = 12.5743;
+        ideal_M[2] = 0.4149;
+        ideal_M[3] = 0.940341;
 
         // Define Weighting for Circle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == OCTAGON)
+    {
+        // Define Ideal Octagon Metrics
+        ideal_M[0] = 1.06398;
+        ideal_M[1] = 13.2208;
+        ideal_M[2] = 0.430851;
+        ideal_M[3] = 0.940329;
+
+        // Define Weighting for Octagon Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == HEPTAGON)
+    {
+        // Define Ideal Heptagon Metrics
+        ideal_M[0] = 1.12117;
+        ideal_M[1] = 13.3147;
+        ideal_M[2] = 0.436272;
+        ideal_M[3] = 0.891923;
+
+        // Define Weighting for Heptagon Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == HEXAGON)
+    {
+        // Define Ideal Hexagon Metrics
+        ideal_M[0] = 1.04896;
+        ideal_M[1] = 13.8313;
+        ideal_M[2] = 0.498846;
+        ideal_M[3] = 0.953324;
+
+        // Define Weighting for Hexagon Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == TRAPEZOID)
+    {
+        // Define Ideal Trapezoid Metrics
+        ideal_M[0] = 1.04189;
+        ideal_M[1] = 17.083;
+        ideal_M[2] = 0.686692;
+        ideal_M[3] = 0.959795;
+
+        // Define Weighting for Trapezoid Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == RECTANGLE)
+    {
+        // Define Ideal Rectangle Metrics
+        ideal_M[0] = 1.0;
+        ideal_M[1] = 16.6454;
+        ideal_M[2] = 0.499647;
+        ideal_M[3] = 1.0;
+
+        // Define Weighting for Rectangle Metrics
+        weighting.at<double>(0,0) = .25;
+        weighting.at<double>(1,1) = .25;
+        weighting.at<double>(2,2) = .25;
+        weighting.at<double>(3,3) = .25;
+    }
+    else if (shape == QUARTERCIRCLE)
+    {
+        // Define Ideal Quarter Circle Metrics
+        ideal_M[0] = 1.04535;
+        ideal_M[1] = 15.9988;
+        ideal_M[2] = 0.625148;
+        ideal_M[3] = 0.956621;
+
+        // Define Weighting for Quarter Circle Metrics
         weighting.at<double>(0,0) = .25;
         weighting.at<double>(1,1) = .25;
         weighting.at<double>(2,2) = .25;
