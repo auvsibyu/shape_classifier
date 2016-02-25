@@ -1,19 +1,17 @@
 #include <stdio.h>
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include <cmath>
-#define TRIANGLE 0
-#define STAR 1
+
+#define QUARTERCIRCLE 1
 #define SEMICIRCLE 2
-#define PENTAGON 3
-#define CROSS 5
-#define CIRCLE 6
-#define OCTAGON 7
+#define CIRCLE 3
+#define TRIANGLE 4
+#define RECTANGLE 5
+#define PENTAGON 6
+#define HEXAGON 7
 #define HEPTAGON 8
-#define HEXAGON 9
-#define TRAPEZOID 10
-#define RECTANGLE 11
-#define QUARTERCIRCLE 12
+#define OCTAGON 9
+#define STAR 10
 
 void classify(double M1, double M2, double M3, double M4, double M5, double convex_score,  double width, double height, std::vector<cv::Point>& contour);
 double checkScore(std::vector<double> shape_M,int shape);
