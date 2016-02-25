@@ -13,7 +13,7 @@
 #define OCTAGON 9
 #define STAR 10
 
-void classify(double M1, double M2, double M3, double M4, double M5, double convex_score,  double width, double height, std::vector<cv::Point>& contour);
+bool classify(double M1, double M2, double M3, double M4, double M5, double convex_score,  double width, double height, std::vector<cv::Point>& contour);
 double checkScore(std::vector<double> shape_M,int shape);
 double triArea(int A,int B,int C, std::vector<cv::Point> points);
 void maxAreaTriangle(std::vector<cv::Point> &points, std::vector<cv::Point2f> &maxTri);
@@ -114,7 +114,7 @@ int main(int argc, char** argv )
             {
                 peri = cv::arcLength(contours[i], true);
                 cv::approxPolyDP( contours[i], contours_poly[0], 0.0001*peri, true );
-                cv::approxPolyDP( contours[i], rough_contours_poly[0], .01*peri, true );
+                cv::approxPolyDP( contours[i], rough_contours_poly[0], .03*peri, true );
 
             }
         }
@@ -194,11 +194,24 @@ int main(int argc, char** argv )
             M_matrix[z][2] = Alt[i]/Ach[i];
             M_matrix[z][3] = Acp[i]/Abb[i];
             M_matrix[z][4] = pow(Ach[i],2.0)/(Abb[i]*Alt[i]);
-            classify(M_matrix[z][0],M_matrix[z][1],M_matrix[z][2],M_matrix[z][3],M_matrix[z][4],M_matrix[z][5],minRect[i].size.width,minRect[i].size.height, rough_contours_poly[i]);
+            bool shape = classify(M_matrix[z][0],M_matrix[z][1],M_matrix[z][2],M_matrix[z][3],M_matrix[z][4],M_matrix[z][5],minRect[i].size.width,minRect[i].size.height, rough_contours_poly[i]);
+            std::vector<cv::Rect> ROI(contours_poly.size());
+            std::vector<cv::Point2f>center(contours_poly.size());
+            if (shape == true)
+            {
+                ROI[i] = cv::boundingRect(cv::Mat(contours_poly[i]));
+                center[i].x = (ROI[i].tl().x + ROI[i].br().x)/2.0;
+                center[i].y = (ROI[i].tl().y + ROI[i].br().y)/2.0;
+                std::cout << std::endl << "Target is at " << center[i] << std::endl;
+                cv::Mat croppedImage = image(ROI[i]);
+                cv::namedWindow("WINDOW" + ss.str(), cv::WINDOW_NORMAL);
+                cv::resizeWindow("WINDOW" + ss.str(), 640,480);
+                cv::imshow("WINDOW" + ss.str(), croppedImage);
+            }
         }
 
-//        //Draw Output on Image
-//        // Convert the image to color
+        //Draw Output on Image
+        // Convert the image to color
 
 //        // Choose Colors
 //        cv::Scalar red( 255, 0, 0 );
@@ -230,18 +243,17 @@ int main(int argc, char** argv )
 //            }
 //        }
 
-//        cv::namedWindow("WINDOW" + ss.str(), cv::WINDOW_NORMAL);
-//        cv::resizeWindow("WINDOW" + ss.str(), 640,480);
-//        cv::imshow("WINDOW" + ss.str(), image);
 
-//        std::cout << "M1 (len/Pch) is " << M_matrix[z][0] << std::endl;
-//        std::cout << "M2 (Pch^2/Ach) is " << M_matrix[z][1] << std::endl;
-//        std::cout << "M3 (Alt/Ach) is " << M_matrix[z][2] << std::endl;
-//        std::cout << "M4 (Acp/Abb) is " << M_matrix[z][3] << std::endl;
-//        std::cout << "M5 (Ach^2/(Abb*Alt) is " << M_matrix[z][4] << std::endl << std::endl;
+
+//                std::cout << "M1 (len/Pch) is " << M_matrix[z][0] << std::endl;
+//                std::cout << "M2 (Pch^2/Ach) is " << M_matrix[z][1] << std::endl;
+//                std::cout << "M3 (Alt/Ach) is " << M_matrix[z][2] << std::endl;
+//                std::cout << "M4 (Acp/Abb) is " << M_matrix[z][3] << std::endl;
+//                std::cout << "M5 (Ach^2/(Abb*Alt) is " << M_matrix[z][4] << std::endl << std::endl;
+        std::cout << std::endl;
     }
 
-//    std::cout << "Average" << std::endl;
+    //    std::cout << "Average" << std::endl;
 
     for (int i = 0; i<5; i++)
     {
@@ -254,14 +266,14 @@ int main(int argc, char** argv )
         average = sum/count;
         std::stringstream ss;
         ss << i+1;
-//        std::cout << "Average M" << ss.str() << " is " << average << std::endl;
+        //        std::cout << "Average M" << ss.str() << " is " << average << std::endl;
     }
     cv::waitKey(0);
 
     return 0;
 } 
 
-void classify(double M1, double M2, double M3, double M4, double M5, double convex_score, double width, double length, std::vector<cv::Point> &contour)
+bool classify(double M1, double M2, double M3, double M4, double M5, double convex_score, double width, double length, std::vector<cv::Point> &contour)
 {
     // Get Shape Metrics
     std::vector<double> shape_M(5);
@@ -271,91 +283,146 @@ void classify(double M1, double M2, double M3, double M4, double M5, double conv
     shape_M[3] = M4;
     shape_M[4] = M5;
 
+    int vtc;
+    double circle_score;
+    double semicircle_score;
+    double quartercircle_score;
+    double tri_score;
+    double rectangle_score;
+    double pentagon_score;
+    double hexagon_score;
+    double heptagon_score;
+    double octagon_score;
+    double star_score;
+
+    vtc = contour.size();
+    std::cout << "Vertices: " << vtc << std::endl;
+
     //Shape Decision Implementation
     // Check if Convex
     double convex_lower_bound = 0.90;
     double convex_upper_bound = 1.10;
     if ((convex_lower_bound < convex_score) && (convex_score < convex_upper_bound))
     {
-//        std::cout << "Shape is Convex" << std::endl;
+        //std::cout << "Shape is Convex" << std::endl;
         // Check if circle
-        double circle_score;
         circle_score = checkScore(shape_M,CIRCLE);
-        // Check if semicircle
-        double semicircle_score;
-        semicircle_score = checkScore(shape_M,SEMICIRCLE);
-        //Check if quarter-circle
-        double quartercircle_score;
-        quartercircle_score = checkScore(shape_M,QUARTERCIRCLE);
-        // Check if triangle
-        double tri_score;
-        tri_score = checkScore(shape_M,TRIANGLE);
-        // Check if rectangle
-        double rectangle_score;
-        rectangle_score = checkScore(shape_M,RECTANGLE);
-        // Check if pentagon
-        double pentagon_score;
-        pentagon_score = checkScore(shape_M,PENTAGON);
-        // Check if hexagon
-        double hexagon_score;
-        hexagon_score = checkScore(shape_M,HEXAGON);
-        // Check if heptagon
-        double heptagon_score;
-        heptagon_score = checkScore(shape_M,HEPTAGON);
-        // Check if octagon
-        double octagon_score;
-        octagon_score = checkScore(shape_M,OCTAGON);
-
-        if (rectangle_score > .8)
-        {
-            double square_upper_bound = 1.25;
-            double square_lower_bound = 0.75;
-            // Check if square
-            if ((square_lower_bound < length/width) && (length/width < square_upper_bound))
-            {
-                std::cout << "Target is square" << std::endl;
-            }
-            else
-            {
-                std::cout << "Target is rectangle" << std::endl;
-            }
-        }
         if (circle_score > .95)
         {
+            std::cout << "circle_score is " << circle_score << std::endl;\
             std::cout << "Target is circle" << std::endl;
         }
-        if ((semicircle_score > .90) || (quartercircle_score > .90))
+        // Check if semicircle
+        semicircle_score = checkScore(shape_M,SEMICIRCLE);
+        //Check if quarter-circle
+        quartercircle_score = checkScore(shape_M,QUARTERCIRCLE);
+        if ((semicircle_score < .92) && (quartercircle_score > .90))
+        {
+            std::cout << "Target is quartercircle" << std::endl;
+            std::cout << "quartercircle_score is " << quartercircle_score << std::endl;
+            return true;
+        }
+        if ((semicircle_score > .92) && (quartercircle_score < .90))
+        {
+
+            std::cout << "Target is semicircle" << std::endl;
+            std::cout << "semicircle_score is " << semicircle_score << std::endl;
+            return true;
+        }
+        if ((semicircle_score > .92) && (quartercircle_score > .90))
         {
             if ((.75 < length/width) && (length/width < 1.25))
             {
                 std::cout << "Target is quartercircle" << std::endl;
+                std::cout << "quartercircle_score is " << quartercircle_score << std::endl;
             }
             else
             {
                 std::cout << "Target is semicircle" << std::endl;
+                std::cout << "semicircle_score is " << semicircle_score << std::endl;
+            }
+            return true;
+        }
+        // Check if triangle
+        if (vtc == 3)
+        {
+            tri_score = checkScore(shape_M,TRIANGLE);
+            std::cout << "tri_score is " << tri_score << std::endl;
+            if (tri_score > .90)
+            {
+                std::cout << "Target is triangle" << std::endl;
+                return true;
             }
         }
-        if (tri_score > .90)
+        // Check if rectangle
+        if (vtc == 4)
         {
-            std::cout << "Target is triangle" << std::endl;
+            rectangle_score = checkScore(shape_M,RECTANGLE);
+            if (rectangle_score > .8)
+            {
+                double square_upper_bound = 1.25;
+                double square_lower_bound = 0.75;
+                // Check if square
+                if ((square_lower_bound < length/width) && (length/width < square_upper_bound))
+                {
+                    std::cout << "Target is square" << std::endl;
+                    std::cout << "rectangle_score is " << rectangle_score << std::endl;
+                    return true;
+                }
+                else
+                {
+                    std::cout << "Target is rectangle" << std::endl;
+                    std::cout << "rectangle_score is " << rectangle_score << std::endl;
+                    return true;
+                }
+            }
         }
-        if (pentagon_score > .95)
+        // Check if pentagon
+        if (vtc == 5)
         {
-            std::cout << "Target is pentagon" << std::endl;
+            pentagon_score = checkScore(shape_M,PENTAGON);
+            std::cout << "pentagon_score is " << pentagon_score << std::endl;
+            if (pentagon_score > .90)
+            {
+                std::cout << "Target is pentagon" << std::endl;
+                return true;
+            }
         }
-        if (hexagon_score > .95)
+        // Check if hexagon
+        if (vtc == 6)
         {
-            std::cout << "Target is hexagon" << std::endl;
+            hexagon_score = checkScore(shape_M,HEXAGON);
+            std::cout << "hexagon_score is " << hexagon_score << std::endl;
+            if (hexagon_score > .95)
+            {
+                std::cout << "Target is hexagon" << std::endl;
+                return true;
+            }
         }
-        if (heptagon_score > .90)
+        // Check if heptagon
+        if (vtc == 7)
         {
-            std::cout << "Target is heptagon" << std::endl;
+            heptagon_score = checkScore(shape_M,HEPTAGON);
+            std::cout << "heptagon_score is " << heptagon_score << std::endl;
+            if (heptagon_score > .90)
+            {
+                std::cout << "Target is heptagon" << std::endl;
+                return true;
+            }
         }
-        if (octagon_score > .95)
+        // Check if octagon
+        if (vtc == 8)
         {
-            std::cout << "Target is octagon" << std::endl;
+            octagon_score = checkScore(shape_M,OCTAGON);
+            std::cout << "octagon_score is " << octagon_score << std::endl;
+            if (octagon_score > .95)
+            {
+                std::cout << "Target is octagon" << std::endl;
+                return true;
+            }
         }
-        int vtc = contour.size();
+
+        vtc = contour.size();
         if (vtc==4)
         {
             std::vector<double> angles;
@@ -371,6 +438,7 @@ void classify(double M1, double M2, double M3, double M4, double M5, double conv
                     if ((angles[1]-.175 > angles[2]) || (angles[2] > angles[1] + .175))
                     {
                         std::cout << "Target is a trapezoid" << std::endl;
+                        return true;
                     }
                 }
             }
@@ -378,16 +446,18 @@ void classify(double M1, double M2, double M3, double M4, double M5, double conv
     }
     else
     {
-//        std::cout << "Shape is not Convex" << std::endl;
+        //        std::cout << "Shape is not Convex" << std::endl;
         // Check if star
-        double star_score;
-        star_score = checkScore(shape_M,STAR);
-        if (star_score > .95)
+        if (vtc == 10)
         {
-            std::cout << "Target is star" << std::endl;
+            star_score = checkScore(shape_M,STAR);
+            std::cout << "star_score is " << star_score << std::endl;
+            if (star_score > .95)
+            {
+                std::cout << "Target is star" << std::endl;
+                return true;
+            }
         }
-
-        int vtc = contour.size();
         if (vtc==12)
         {
             std::vector<double> angles;
@@ -407,23 +477,12 @@ void classify(double M1, double M2, double M3, double M4, double M5, double conv
             if (cross == true)
             {
                 std::cout << "Target is a cross" << std::endl;
+                return true;
             }
         }
     }
 
-//    std::cout << "Vertices: " << vtc << std::endl;
-//    std::cout << "rectangle_score is " << rectangle_score << std::endl;
-//    std::cout << "circle_score is " << circle_score << std::endl;
-//    std::cout << "semicircle_score is " << semicircle_score << std::endl;
-//    std::cout << "quartercircle_score is " << quartercircle_score << std::endl;
-//    std::cout << "tri_score is " << tri_score << std::endl;
-//    std::cout << "pentagon_score is " << pentagon_score << std::endl;
-//    std::cout << "hexagon_score is " << hexagon_score << std::endl;
-//    std::cout << "heptagon_score is " << heptagon_score << std::endl;
-//    std::cout << "octagon_score is " << octagon_score << std::endl;
-//    std::cout << "star_score is " << star_score << std::endl;
-
-    return;
+    return false;
 }
 
 static double angle(cv::Point pt1, cv::Point pt2, cv::Point pt0)
@@ -450,10 +509,10 @@ double checkScore(std::vector<double> shape_M,int shape)
 
         // Define Weighting for Quarter Circle Metrics
         weighting.at<double>(0,0) = 0;
-        weighting.at<double>(1,1) = .4;
-        weighting.at<double>(2,2) = .1;
+        weighting.at<double>(1,1) = .2;
+        weighting.at<double>(2,2) = .2;
         weighting.at<double>(3,3) = .1;
-        weighting.at<double>(4,4) = .4;
+        weighting.at<double>(4,4) = .5;
 
     }
     else if (shape == SEMICIRCLE)
@@ -467,10 +526,10 @@ double checkScore(std::vector<double> shape_M,int shape)
 
         // Define Weighting for Semicircle Metrics
         weighting.at<double>(0,0) = 0;
-        weighting.at<double>(1,1) = .4;
-        weighting.at<double>(2,2) = .1;
+        weighting.at<double>(1,1) = .2;
+        weighting.at<double>(2,2) = .2;
         weighting.at<double>(3,3) = .1;
-        weighting.at<double>(4,4) = .4;
+        weighting.at<double>(4,4) = .5;
     }
     else if (shape == CIRCLE)
     {
@@ -529,8 +588,8 @@ double checkScore(std::vector<double> shape_M,int shape)
         weighting.at<double>(0,0) = 0;
         weighting.at<double>(1,1) = .3;
         weighting.at<double>(2,2) = .3;
-        weighting.at<double>(3,3) = .2;
-        weighting.at<double>(4,4) = .2;
+        weighting.at<double>(3,3) = .3;
+        weighting.at<double>(4,4) = .1;
     }
     else if (shape == HEXAGON)
     {
@@ -559,10 +618,10 @@ double checkScore(std::vector<double> shape_M,int shape)
 
         // Define Weighting for Heptagon Metrics
         weighting.at<double>(0,0) = 0;
-        weighting.at<double>(1,1) = .2;
-        weighting.at<double>(2,2) = .2;
+        weighting.at<double>(1,1) = .3;
+        weighting.at<double>(2,2) = .3;
         weighting.at<double>(3,3) = .3;
-        weighting.at<double>(4,4) = .3;
+        weighting.at<double>(4,4) = .1;
     }
     else if (shape == OCTAGON)
     {
@@ -692,6 +751,8 @@ void maxAreaTriangle(std::vector<cv::Point> &points, std::vector<cv::Point2f> &m
     maxTri[1] = points[bB];
     maxTri[2] = points[bC];
 }
+
+void cropImage();
 
 
 double triArea(int A,int B,int C, std::vector<cv::Point> points)
